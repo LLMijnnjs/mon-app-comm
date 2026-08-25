@@ -1,103 +1,93 @@
-let ws = null;
-const status = document.getElementById('status');
-const log = document.getElementById('log');
-const serverUrlInput = document.getElementById('serverUrl');
-        
-        // Récupère l'URL sauvegardée ou par défaut
-        let serverUrl = localStorage.getItem('serverUrl') || 'https://app-amour.replit.dev';
-        serverUrlInput.value = serverUrl;
-        
-        // Change l'URL du serveur
-        function changeServer() {
-            serverUrl = serverUrlInput.value.trim();
-            if (!serverUrl) {
-                alert('Entre une URL!');
-                return;
+const express = require('express');
+const WebSocket = require('ws');
+const http = require('http');
+
+const app = express();
+const server = http.createServer(app);
+
+// ⚠️ IMPORTANT: Config WebSocket pour HTTPS
+const wss = new WebSocket.Server({ 
+    server,
+    perMessageDeflate: false
+});
+
+let esp32_A = null;
+let esp32_B = null;
+let phones = [];
+
+// Ajouter les headers CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    next();
+});
+
+// Route de health check
+app.get('/', (req, res) => {
+    res.send('Serveur WebSocket actif');
+});
+
+wss.on('connection', (ws) => {
+    console.log('📡 Nouvelle connexion WebSocket');
+    
+    ws.on('message', (data) => {
+        try {
+            const msg = JSON.parse(data);
+            console.log('📨 Message reçu:', msg);
+            
+            // Identification
+            if (msg.id === 'ESP32_A') {
+                esp32_A = ws;
+                console.log('✓ ESP32_A connecté');
+            } 
+            else if (msg.id === 'ESP32_B') {
+                esp32_B = ws;
+                console.log('✓ ESP32_B connecté');
             }
-            localStorage.setItem('serverUrl', serverUrl);
-            addLog('✓ URL sauvegardée');
-            location.reload();
-        }
-        
-        // Connexion WebSocket
-        function connect() {
-            const protocol = serverUrl.startsWith('https') ? 'wss:' : 'ws:';
-            const url = serverUrl.replace('https://', '').replace('http://', '');
-            const wsUrl = `${protocol}//${url}`;
-            
-            console.log('Connexion à:', wsUrl);
-            addLog('Connexion...');
-            
-            try {
-                ws = new WebSocket(wsUrl);
-            } catch(e) {
-                addLog('✗ Erreur URL');
-                return;
-            }
-            
-            ws.onopen = () => {
-                updateStatus(true);
-                addLog('✓ Connecté!');
-                
-                // S'identifier
-                ws.send(JSON.stringify({
-                    id: 'PHONE'
-                }));
-            };
-            
-            ws.onerror = (error) => {
-                console.error(error);
-                addLog('✗ Erreur de connexion');
-                updateStatus(false);
-            };
-            
-            ws.onclose = () => {
-                updateStatus(false);
-                addLog('⚠️ Reconnexion...');
-                setTimeout(connect, 3000);
-            };
-        }
-        
-        // Mettre à jour le statut
-        function updateStatus(connected) {
-            if (connected) {
-                status.textContent = '🟢 Connecté';
-                status.className = 'status on';
-            } else {
-                status.textContent = '🔴 Déconnecté';
-                status.className = 'status off';
-            }
-        }
-        
-        // Envoyer l'ordre LED
-        function sendLED(state) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addLog('✗ Non connecté');
-                return;
+            else if (msg.id === 'PHONE') {
+                if (!phones.includes(ws)) {
+                    phones.push(ws);
+                    console.log(`📱 PHONE connecté (Total: ${phones.length})`);
+                }
             }
             
-            const action = state === 'on' ? 'ledOn' : 'ledOff';
+            // Relayer les messages
+            if (msg.from === 'ESP32_A' && esp32_B) {
+                console.log(`📨 A → B`);
+                esp32_B.send(JSON.stringify(msg));
+            }
             
-            ws.send(JSON.stringify({
-                from: 'PHONE',
-                action: action
-            }));
+            if (msg.from === 'ESP32_B' && esp32_A) {
+                console.log(`📨 B → A`);
+                esp32_A.send(JSON.stringify(msg));
+            }
             
-            addLog(`→ LED ${state.toUpperCase()}`);
+            if (msg.from === 'PHONE') {
+                console.log(`📱 PHONE → ESP32`);
+                if (esp32_A) esp32_A.send(JSON.stringify(msg));
+                if (esp32_B) esp32_B.send(JSON.stringify(msg));
+            }
+            
+        } catch(e) {
+            console.error('❌ Erreur parse JSON:', e);
         }
-        
-        // Ajouter un log
-        function addLog(text) {
-            const p = document.createElement('p');
-            const time = new Date().toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            p.textContent = `${time} - ${text}`;
-            log.appendChild(p);
-            log.scrollTop = log.scrollHeight;
-        }
-        
-        // Lancer la connexion au démarrage
-        connect();
+    });
+    
+    ws.on('close', () => {
+        console.log('❌ Connexion fermée');
+        if (ws === esp32_A) esp32_A = null;
+        if (ws === esp32_B) esp32_B = null;
+        phones = phones.filter(p => p !== ws);
+    });
+    
+    ws.on('error', (error) => {
+        console.error('❌ Erreur WebSocket:', error);
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Serveur WebSocket démarré sur port ${PORT}`);
+    console.log(`📡 En attente de connexions...`);
+    console.log(`URL: https://serveur-web-socket-esp-32--leoserver.replit.app`);
+});
