@@ -4,8 +4,10 @@ const log = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
         
         // Récupère l'URL sauvegardée ou par défaut
-        let serverUrl = localStorage.getItem('serverUrl') || 'https://app-amour.replit.dev';
-        serverUrlInput.value = serverUrl;
+        let serverUrl = localStorage.getItem('serverUrl') || 'https://esp-32-web-socket-relay--collleopter06.replit.app';
+if (serverUrlInput) {
+    serverUrlInput.value = serverUrl;
+}
         
         // Change l'URL du serveur
         function changeServer() {
@@ -20,43 +22,44 @@ const serverUrlInput = document.getElementById('serverUrl');
         }
         
         // Connexion WebSocket
-        function connect() {
-            const protocol = serverUrl.startsWith('https') ? 'wss:' : 'ws:';
-            const url = serverUrl.replace('https://', '').replace('http://', '');
-            const wsUrl = `${protocol}//${url}`;
-            
-            console.log('Connexion à:', wsUrl);
-            addLog('Connexion...');
-            
-            try {
-                ws = new WebSocket(wsUrl);
-            } catch(e) {
-                addLog('✗ Erreur URL');
-                return;
-            }
-            
-            ws.onopen = () => {
-                updateStatus(true);
-                addLog('✓ Connecté!');
-                
-                // S'identifier
-                ws.send(JSON.stringify({
-                    id: 'PHONE'
-                }));
-            };
-            
-            ws.onerror = (error) => {
-                console.error(error);
-                addLog('✗ Erreur de connexion');
-                updateStatus(false);
-            };
-            
-            ws.onclose = () => {
-                updateStatus(false);
-                addLog('⚠️ Reconnexion...');
-                setTimeout(connect, 3000);
-            };
-        }
+function connect() {
+    // URL PAR TON SERVEUR REPLIT:
+    const baseUrl = 'https://esp-32-web-socket-relay--collleopter06.replit.app/';
+    const wsUrl = `wss://${baseUrl}/api?id=PHONE`;
+    
+    console.log('Connexion à:', wsUrl);
+    addLog('Connexion...');
+    
+    try {
+        ws = new WebSocket(wsUrl);
+    } catch(e) {
+        console.error('Erreur:', e);
+        addLog('✗ Erreur URL');
+        return;
+    }
+    
+    ws.onopen = () => {
+        updateStatus(true);
+        addLog('✓ Connecté!');
+        
+        // S'identifier
+        ws.send(JSON.stringify({
+            id: 'PHONE'
+        }));
+    };
+    
+    ws.onerror = (error) => {
+        console.error(error);
+        addLog('✗ Erreur de connexion');
+        updateStatus(false);
+    };
+    
+    ws.onclose = () => {
+        updateStatus(false);
+        addLog('⚠️ Reconnexion...');
+        setTimeout(connect, 3000);
+    };
+}
         
         // Mettre à jour le statut
         function updateStatus(connected) {
