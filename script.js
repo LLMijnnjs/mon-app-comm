@@ -23,9 +23,7 @@ if (serverUrlInput) {
         
         // Connexion WebSocket
 function connect() {
-    // URL PAR TON SERVEUR REPLIT:
-    const baseUrl = 'https://esp-32-web-socket-relay--collleopter06.replit.app/';
-    const wsUrl = `wss://${baseUrl}/api?id=PHONE`;
+    const wsUrl = 'wss://esp-32-web-socket-relay--collleopter06.replit.app/api?id=PHONE';
     
     console.log('Connexion à:', wsUrl);
     addLog('Connexion...');
@@ -42,7 +40,6 @@ function connect() {
         updateStatus(true);
         addLog('✓ Connecté!');
         
-        // S'identifier
         ws.send(JSON.stringify({
             id: 'PHONE'
         }));
