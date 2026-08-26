@@ -4,7 +4,7 @@ const log = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
         
         // Récupère l'URL sauvegardée ou par défaut
-        let serverUrl = localStorage.getItem('serverUrl') || 'https://esp-32-web-socket-relay--collleopter06.replit.app';
+        let serverUrl = localStorage.getItem('serverUrl') || 'https://esp-32-web-socket-relay--collleopter06.replit.app/api?id=PHONE';
 if (serverUrlInput) {
     serverUrlInput.value = serverUrl;
 }
