@@ -1,6 +1,7 @@
 /* script.js — Auth overlay au démarrage (utilise le HTML existant dans index.html)
    - Le HTML contient #auth (overlay) et #app (wrapper de l'app)
    - Le script montre/masque #auth et #app, gère la WS et envoie {id, password, action}
+   - Ajout d'un timeout d'authentification (5s) pour réactiver le bouton et afficher une erreur si le serveur ne répond pas
 */
 
 let ws = null;
@@ -18,6 +19,10 @@ const appEl = document.getElementById('app');
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
+
+// auth timeout settings
+const AUTH_TIMEOUT_MS = 5000; // milliseconds
+let authTimer = null;
 
 let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
 if (serverUrlInput) serverUrlInput.value = serverUrl;
@@ -46,6 +51,13 @@ function updateStatus(connected) {
   statusEl.className = connected ? 'status on' : 'status off';
 }
 
+function clearAuthTimer() {
+  if (authTimer) {
+    clearTimeout(authTimer);
+    authTimer = null;
+  }
+}
+
 // connect returns a Promise resolved when ws is open
 function connect() {
   return new Promise((resolve, reject) => {
@@ -67,13 +79,29 @@ function connect() {
       updateStatus(true);
       addLog('✓ Connecté !');
       // send identification (id + password may be null)
-      ws.send(JSON.stringify({ id: clientId || 'PHONE1', password: password }));
+      const identify = { id: clientId || 'PHONE1', password: password };
+      try { ws.send(JSON.stringify(identify)); } catch (e) { console.error('send identify failed', e); }
+      console.log('WS onopen — envoi identify:', identify);
+
+      // start auth timeout: if server doesn't confirm within AUTH_TIMEOUT_MS, show error and re-enable button
+      clearAuthTimer();
+      authTimer = setTimeout(() => {
+        addLog('✖ Pas de réponse du serveur (timeout)');
+        if (authError) { authError.style.display = 'block'; authError.textContent = 'Pas de réponse du serveur (timeout)'; }
+        try { if (ws) ws.close(); } catch (e) {}
+        if (authSubmit) { authSubmit.disabled = false; authSubmit.textContent = 'Se connecter'; }
+      }, AUTH_TIMEOUT_MS);
+
       resolve();
     };
 
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+        // clear auth timeout as soon as we receive any message (and particularly auth)
+        if (msg && msg.type === 'auth') {
+          clearAuthTimer();
+        }
         if (msg && msg.type === 'auth') {
           if (msg.status === 'ok' || msg.status === 'accepted') {
             addLog('✓ Authentification acceptée');
@@ -83,6 +111,7 @@ function connect() {
             addLog('✖ Authentification refusée');
             if (authError) { authError.style.display = 'block'; authError.textContent = 'Authentification refusée'; }
             try { ws.close(); } catch (e) {}
+            if (authSubmit) { authSubmit.disabled = false; authSubmit.textContent = 'Se connecter'; }
           }
           return;
         }
@@ -96,12 +125,22 @@ function connect() {
       console.error(err);
       addLog('✗ Erreur de connexion');
       updateStatus(false);
+      clearAuthTimer();
+      if (authSubmit && authEl && authEl.style.display !== 'none') {
+        authSubmit.disabled = false;
+        authSubmit.textContent = 'Se connecter';
+      }
       if (!opened) reject(err);
     };
 
     ws.onclose = () => {
       updateStatus(false);
       addLog('⚠️ Déconnecté — tentative de reconnexion dans 3s');
+      clearAuthTimer();
+      if (authSubmit && authEl && authEl.style.display !== 'none') {
+        authSubmit.disabled = false;
+        authSubmit.textContent = 'Se connecter';
+      }
       setTimeout(() => {
         if (authEl && authEl.style.display !== 'none') return;
         connect().catch(() => {});
@@ -114,7 +153,7 @@ function sendLED(state) {
   if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return; }
   const action = state === 'on' ? 'ledOn' : 'ledOff';
   const payload = { id: clientId || 'PHONE1', password: password, action: action };
-  ws.send(JSON.stringify(payload));
+  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); }
   addLog(`→ LED ${state.toUpperCase()}`);
 }
 
@@ -128,19 +167,18 @@ function changeServer() {
 
 // Auth handlers (submit/cancel)
 if (authSubmit) authSubmit.addEventListener('click', () => {
-  authError.style.display = 'none';
+  if (authError) { authError.style.display = 'none'; authError.textContent = ''; }
   clientId = (authIdEl.value || 'PHONE1').trim();
   password = (authPwdEl.value || '').trim() || null;
   authSubmit.disabled = true;
   authSubmit.textContent = 'Connexion...';
   connect()
     .then(() => {
-      // wait server auth message to hide overlay; re-enable button if needed by server response
+      // wait server auth message to hide overlay; auth timeout will handle if no response
     })
     .catch((err) => {
       console.error(err);
-      authError.style.display = 'block';
-      authError.textContent = 'Impossible de se connecter au serveur';
+      if (authError) { authError.style.display = 'block'; authError.textContent = 'Impossible de se connecter au serveur'; }
       authSubmit.disabled = false;
       authSubmit.textContent = 'Se connecter';
     });
