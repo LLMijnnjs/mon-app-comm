@@ -1,7 +1,6 @@
 /* script.js — Auth overlay au démarrage (utilise le HTML existant dans index.html)
    - Le HTML contient #auth (overlay) et #app (wrapper de l'app)
    - Le script montre/masque #auth et #app, gère la WS et envoie {id, password, action}
-   - Ajout d'un timeout d'authentification (5s) pour réactiver le bouton et afficher une erreur si le serveur ne répond pas
 */
 
 let ws = null;
@@ -19,10 +18,6 @@ const appEl = document.getElementById('app');
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
-
-// auth timeout settings
-const AUTH_TIMEOUT_MS = 5000; // milliseconds
-let authTimer = null;
 
 let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
 if (serverUrlInput) serverUrlInput.value = serverUrl;
@@ -51,6 +46,10 @@ function updateStatus(connected) {
   statusEl.className = connected ? 'status on' : 'status off';
 }
 
+// auth timeout settings
+const AUTH_TIMEOUT_MS = 10000; // milliseconds (increased from 5000)
+let authTimer = null;
+
 function clearAuthTimer() {
   if (authTimer) {
     clearTimeout(authTimer);
@@ -65,6 +64,11 @@ function connect() {
     if (!wsUrl) { addLog('✗ URL serveur invalide'); return reject(new Error('invalid url')); }
 
     try {
+      // prevent opening multiple websocket if one is already open/connecting
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        addLog('⚠️ WS déjà en cours');
+        return resolve();
+      }
       ws = new WebSocket(wsUrl);
     } catch (e) {
       console.error(e);
@@ -97,11 +101,11 @@ function connect() {
 
     ws.onmessage = (e) => {
       try {
+        // log raw frame for diagnsotics
+        console.log('WS onmessage raw:', e.data);
         const msg = JSON.parse(e.data);
         // clear auth timeout as soon as we receive any message (and particularly auth)
-        if (msg && msg.type === 'auth') {
-          clearAuthTimer();
-        }
+        clearAuthTimer();
         if (msg && msg.type === 'auth') {
           if (msg.status === 'ok' || msg.status === 'accepted') {
             addLog('✓ Authentification acceptée');
