@@ -19,6 +19,10 @@ const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
 
+// NEW: éléments pour l'envoi de message utilisateur
+const messageInput = document.getElementById('messageInput');
+const messageSend = document.getElementById('messageSend');
+
 // default server URL (Railway)
 const DEFAULT_SERVER_URL = 'https://server-esp32-xog3-production.up.railway.app/';
 
@@ -137,6 +141,13 @@ function connect() {
           }
           return;
         }
+
+        // handle incoming user messages from server
+        if (msg && msg.type === 'message' && typeof msg.message === 'string') {
+          addLog('← Message: ' + msg.message);
+          return;
+        }
+
         addLog('← ' + (typeof e.data === 'string' ? e.data : JSON.stringify(e.data)));
       } catch (err) {
         addLog('← ' + e.data);
@@ -179,6 +190,15 @@ function sendLED(state) {
   addLog(`→ LED ${state.toUpperCase()}`);
 }
 
+// NEW: envoie d'un message saisi par l'utilisateur
+function sendMessage(text) {
+  if (!text || !text.trim()) { addLog('✗ Message vide'); return; }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return; }
+  const payload = { id: clientId || 'PHONE1', password: password, action: 'message', message: String(text) };
+  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); }
+  addLog('→ Message: ' + text);
+}
+
 function changeServer() {
   serverUrl = serverUrlInput.value.trim();
   if (!serverUrl) { alert('Entre une URL!'); return; }
@@ -210,6 +230,17 @@ if (authCancel) authCancel.addEventListener('click', () => {
   try { window.close(); } catch (e) {}
 });
 
+// wire message send button if present
+if (messageSend) {
+  messageSend.addEventListener('click', () => {
+    const text = messageInput ? (messageInput.value || '').trim() : '';
+    if (!text) { addLog('✗ Message vide'); return; }
+    sendMessage(text);
+    if (messageInput) messageInput.value = '';
+  });
+}
+
 // expose for console / buttons
 window.sendLED = sendLED;
 window.changeServer = changeServer;
+window.sendMessage = sendMessage;
