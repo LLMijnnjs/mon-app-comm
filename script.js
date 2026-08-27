@@ -53,10 +53,14 @@ function toWsUrl(url) {
   return 'wss://' + url;
 }
 
+function nowTime() {
+  return new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
 function addLog(text) {
   if (!logEl) return;
   const p = document.createElement('p');
-  const time = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const time = nowTime();
   p.textContent = `${time} - ${text}`;
   logEl.appendChild(p);
   logEl.scrollTop = logEl.scrollHeight;
@@ -77,6 +81,36 @@ function clearAuthTimer() {
     clearTimeout(authTimer);
     authTimer = null;
   }
+}
+
+// pending messages map: msgId -> { el, timeout }
+const pendingMessages = new Map();
+const ACK_TIMEOUT_MS = 7000; // attendre 7s pour un ack avant d'afficher échec
+
+function markMessageDelivered(msgId, info) {
+  const rec = pendingMessages.get(msgId);
+  if (!rec) return false;
+  clearTimeout(rec.timeout);
+  const el = rec.el;
+  const time = nowTime();
+  el.textContent = `${time} - ✓ Message envoyé${info ? ' (' + info + ')' : ''}`;
+  el.classList.remove('pending');
+  el.classList.add('delivered');
+  pendingMessages.delete(msgId);
+  return true;
+}
+
+function markMessageFailed(msgId, info) {
+  const rec = pendingMessages.get(msgId);
+  if (!rec) return false;
+  clearTimeout(rec.timeout);
+  const el = rec.el;
+  const time = nowTime();
+  el.textContent = `${time} - ✖ Envoi échoué${info ? ' (' + info + ')' : ''}`;
+  el.classList.remove('pending');
+  el.classList.add('failed');
+  pendingMessages.delete(msgId);
+  return true;
 }
 
 // connect returns a Promise resolved when ws is open
@@ -144,10 +178,26 @@ function connect() {
 
         // handle incoming user messages from server
         if (msg && msg.type === 'message' && typeof msg.message === 'string') {
+          // if message carries msgId it may correspond to one we sent -> mark delivered
+          if (msg.msgId && pendingMessages.has(msg.msgId)) {
+            markMessageDelivered(msg.msgId, 'serveur a renvoyé le message');
+            return;
+          }
           addLog('← Message: ' + msg.message);
           return;
         }
 
+        // handle ack messages (server may send {type:'ack', msgId: '...'} or {type:'ack', id: '...'} )
+        if (msg && msg.type === 'ack') {
+          const ackId = msg.msgId || msg.id || msg.messageId;
+          if (ackId && pendingMessages.has(ackId)) {
+            const info = msg.status ? msg.status : (msg.info || 'ACK reçu');
+            markMessageDelivered(ackId, info);
+            return;
+          }
+        }
+
+        // generic
         addLog('← ' + (typeof e.data === 'string' ? e.data : JSON.stringify(e.data)));
       } catch (err) {
         addLog('← ' + e.data);
@@ -194,9 +244,31 @@ function sendLED(state) {
 function sendMessage(text) {
   if (!text || !text.trim()) { addLog('✗ Message vide'); return; }
   if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return; }
-  const payload = { id: clientId || 'PHONE1', password: password, action: 'message', message: String(text) };
-  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); }
-  addLog('→ Message: ' + text);
+
+  const msgId = 'm-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+  const payload = { id: clientId || 'PHONE1', password: password, action: 'message', message: String(text), msgId: msgId };
+
+  // create pending log entry
+  if (logEl) {
+    const p = document.createElement('p');
+    p.dataset.msgId = msgId;
+    p.classList.add('pending');
+    p.textContent = `${nowTime()} - → Message (en attente): ${text}`;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+
+    // start ack timeout
+    const t = setTimeout(() => {
+      // mark failed
+      if (pendingMessages.has(msgId)) {
+        markMessageFailed(msgId, 'timeout');
+      }
+    }, ACK_TIMEOUT_MS);
+
+    pendingMessages.set(msgId, { el: p, timeout: t });
+  }
+
+  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); if (pendingMessages.has(msgId)) markMessageFailed(msgId, 'send error'); }
 }
 
 function changeServer() {
