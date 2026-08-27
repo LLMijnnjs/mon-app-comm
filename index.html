@@ -52,11 +52,11 @@
           </div>
 
           <!-- Message input: permet d'envoyer un message texte au serveur.
-               Le formulaire capte Entrée (submit) et déclenche l'envoi via script.js. -->
-          <form id="messageForm" class="message-form" onsubmit="event.preventDefault(); document.getElementById('messageSend')?.click();">
+               Le formulaire capte Entrée (submit) et appelle sendMessage directement. -->
+          <form id="messageForm" class="message-form" onsubmit="event.preventDefault(); window.sendMessage && window.sendMessage((document.getElementById('messageInput')||{}).value || '');">
             <label for="messageInput" class="visually-hidden">Message</label>
             <input type="text" id="messageInput" placeholder="Votre message..." autocomplete="off" aria-label="Votre message">
-            <button type="submit" id="messageSend">Envoyer</button>
+            <button type="button" id="messageSend">Envoyer</button>
           </form>
 
           <div class="log" id="log" aria-live="polite"></div>
