@@ -236,7 +236,25 @@ function connect() {
     };
   });
 }
+function sendAction(action, extra = {}) {
 
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    addLog('✗ Non connecté');
+    return;
+  }
+
+  const payload = {
+    id: clientId || 'PHONE1',
+    password: password,
+    action: action,
+    ...extra
+  };
+
+  ws.send(JSON.stringify(payload));
+
+  console.log('→ Action envoyée:', payload);
+}
+window.sendAction = sendAction;
 function sendLED(state) {
 
   console.log("=== TEST LED ===");
