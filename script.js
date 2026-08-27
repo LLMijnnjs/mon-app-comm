@@ -19,7 +19,25 @@ const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
 
-let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
+// default server URL (Railway)
+const DEFAULT_SERVER_URL = 'https://server-esp32-xog3-production.up.railway.app/';
+
+// read from localStorage but migrate old Replit URLs to the new Railway URL
+let serverUrl = localStorage.getItem('serverUrl') || DEFAULT_SERVER_URL;
+try {
+  const stored = localStorage.getItem('serverUrl');
+  if (stored) {
+    const s = stored.toLowerCase();
+    if (s.includes('repl') || s.includes('replit')) {
+      // replace old Replit URL with the Railway default
+      serverUrl = DEFAULT_SERVER_URL;
+      localStorage.setItem('serverUrl', serverUrl);
+    }
+  }
+} catch (e) {
+  // ignore storage errors
+}
+
 if (serverUrlInput) serverUrlInput.value = serverUrl;
 
 function toWsUrl(url) {
