@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>💡 LED Test</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+      /* Petit style d'accessibilité pour le formulaire de message */
+      .message-form { display:flex; gap:0.5rem; margin:1rem 0; }
+      .message-form input[type="text"] { flex:1; padding:0.5rem; }
+      .visually-hidden { position: absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
+    </style>
 </head>
 <body>
     <!-- Auth overlay (visible au chargement) -->
@@ -45,7 +51,15 @@
               <button class="btn-off" onclick="sendLED('off')">⚫ ÉTEINDRE</button>
           </div>
 
-          <div class="log" id="log"></div>
+          <!-- Message input: permet d'envoyer un message texte au serveur.
+               Le formulaire capte Entrée (submit) et déclenche l'envoi via script.js. -->
+          <form id="messageForm" class="message-form" onsubmit="event.preventDefault(); document.getElementById('messageSend')?.click();">
+            <label for="messageInput" class="visually-hidden">Message</label>
+            <input type="text" id="messageInput" placeholder="Votre message..." autocomplete="off" aria-label="Votre message">
+            <button type="submit" id="messageSend">Envoyer</button>
+          </form>
+
+          <div class="log" id="log" aria-live="polite"></div>
 
           <div class="config">
               <label for="serverUrl">URL du serveur (Railway):</label>
