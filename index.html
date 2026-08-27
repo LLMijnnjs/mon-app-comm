@@ -7,28 +7,52 @@
     <title>💡 LED Test</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <h1>💡</h1>
-        <h2>LED Test</h2>
-        <p class="subtitle">Contrôle la LED de loin</p>
-        
-        <div id="status" class="status off">🔴 Déconnecté</div>
-        
-        <div class="buttons">
-            <button class="btn-on" onclick="sendLED('on')">💡 ALLUMER</button>
-            <button class="btn-off" onclick="sendLED('off')">⚫ ÉTEINDRE</button>
-        </div>
-        
-        <div class="log" id="log"></div>
-        
-        <div class="config">
-            <label for="serverUrl">URL du serveur (Railway):</label>
-            <input type="text" id="serverUrl" placeholder="https://server-esp32-xog3-production.up.railway.app/">
-            <button onclick="changeServer()" style="width: 100%; padding: 10px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">Changer</button>
-        </div>
+<!-- Auth (visible au chargement) -->
+<section id="auth" class="auth-overlay">
+  <div class="auth-box">
+    <h2>Authentification</h2>
+
+    <label for="authId">ID</label>
+    <select id="authId">
+      <option value="PHONE1">PHONE1</option>
+      <option value="PHONE2">PHONE2</option>
+    </select>
+
+    <label for="authPassword">Mot de passe</label>
+    <input id="authPassword" type="password" autocomplete="off" />
+
+    <div class="auth-actions">
+      <button id="authCancel" type="button">Quitter</button>
+      <button id="authSubmit" type="button">Se connecter</button>
     </div>
-    <script src="script.js"></script>
-</body>
+
+    <p id="authError" class="error" aria-live="polite" style="display:none"></p>
+  </div>
+</section>
+
+<!-- Main app (cachée tant que non authentifiée) -->
+<main id="app" style="display:none">
+  <!-- ton contenu existant : status, boutons, log, config, ... -->
+  <div class="container">
+    <h1>💡</h1>
+    <h2>LED Test</h2>
+    <p class="subtitle">Contrôle la LED de loin</p>
+
+    <div id="status" class="status off">🔴 Déconnecté</div>
+
+    <div class="buttons">
+      <button class="btn-on" onclick="sendLED('on')">💡 ALLUMER</button>
+      <button class="btn-off" onclick="sendLED('off')">⚫ ÉTEINDRE</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="config">
+      <label for="serverUrl">URL du serveur (Railway):</label>
+      <input type="text" id="serverUrl" placeholder="https://server-esp32-xog3-production.up.railway.app/">
+      <button onclick="changeServer()" class="btn-change">Changer</button>
+    </div>
+  </div>
+</main>
 
 </html>
