@@ -3,25 +3,25 @@ const status = document.getElementById('status');
 const log = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
         
-        // Récupère l'URL sauvegardée ou par défaut
-        let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
+// Récupère l'URL sauvegardée ou par défaut
+let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
 if (serverUrlInput) {
     serverUrlInput.value = serverUrl;
 }
         
-        // Change l'URL du serveur
-        function changeServer() {
-            serverUrl = serverUrlInput.value.trim();
-            if (!serverUrl) {
+// Change l'URL du serveur
+function changeServer() {
+        serverUrl = serverUrlInput.value.trim();
+        if (!serverUrl) {
                 alert('Entre une URL!');
-                return;
-            }
-            localStorage.setItem('serverUrl', serverUrl);
-            addLog('✓ URL sauvegardée');
-            location.reload();
+        return;
         }
+        localStorage.setItem('serverUrl', serverUrl);
+        addLog('✓ URL sauvegardée');
+        location.reload();
+}
         
-        // Connexion WebSocket
+// Connexion WebSocket
 function connect() {
     const wsUrl = 'https://server-esp32-xog3-production.up.railway.app/';
     
@@ -58,46 +58,46 @@ function connect() {
     };
 }
         
-        // Mettre à jour le statut
-        function updateStatus(connected) {
-            if (connected) {
+// Mettre à jour le statut
+function updateStatus(connected) {
+        if (connected) {
                 status.textContent = '🟢 Connecté';
                 status.className = 'status on';
-            } else {
+        } else {
                 status.textContent = '🔴 Déconnecté';
                 status.className = 'status off';
-            }
         }
+}
         
-        // Envoyer l'ordre LED
-        function sendLED(state) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
+// Envoyer l'ordre LED
+function sendLED(state) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
                 addLog('✗ Non connecté');
                 return;
-            }
+        }
             
-            const action = state === 'on' ? 'ledOn' : 'ledOff';
+        const action = state === 'on' ? 'ledOn' : 'ledOff';
             
-            ws.send(JSON.stringify({
+        ws.send(JSON.stringify({
                 from: 'PHONE',
                 action: action
-            }));
+        }));
             
-            addLog(`→ LED ${state.toUpperCase()}`);
-        }
+        addLog(`→ LED ${state.toUpperCase()}`);
+}
         
-        // Ajouter un log
-        function addLog(text) {
-            const p = document.createElement('p');
-            const time = new Date().toLocaleTimeString('fr-FR', {
+// Ajouter un log
+function addLog(text) {
+        const p = document.createElement('p');
+        const time = new Date().toLocaleTimeString('fr-FR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit'
-            });
-            p.textContent = `${time} - ${text}`;
-            log.appendChild(p);
-            log.scrollTop = log.scrollHeight;
-        }
+        });
+        p.textContent = `${time} - ${text}`;
+        log.appendChild(p);
+        log.scrollTop = log.scrollHeight;
+}
         
-        // Lancer la connexion au démarrage
-        connect();
+// Lancer la connexion au démarrage
+connect();
