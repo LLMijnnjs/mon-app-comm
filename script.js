@@ -4,7 +4,7 @@ const log = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
         
         // Récupère l'URL sauvegardée ou par défaut
-        let serverUrl = localStorage.getItem('serverUrl') || 'https://esp-32-web-socket-relay--collleopter06.replit.app/api?id=PHONE';
+        let serverUrl = localStorage.getItem('serverUrl') || 'https://server-esp32-xog3-production.up.railway.app/';
 if (serverUrlInput) {
     serverUrlInput.value = serverUrl;
 }
@@ -23,7 +23,7 @@ if (serverUrlInput) {
         
         // Connexion WebSocket
 function connect() {
-    const wsUrl = 'https://esp-32-web-socket-relay--collleopter06.replit.app/api?id=PHONE';
+    const wsUrl = 'https://server-esp32-xog3-production.up.railway.app/';
     
     console.log('Connexion à:', wsUrl);
     addLog('Connexion...');
