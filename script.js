@@ -238,10 +238,32 @@ function connect() {
 }
 
 function sendLED(state) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return; }
+
+  console.log("=== TEST LED ===");
+  console.log("state :", state);
+  console.log("ws :", ws);
+  console.log("readyState :", ws ? ws.readyState : "null");
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    console.log("❌ WebSocket pas connecté");
+    addLog('✗ Non connecté');
+    return;
+  }
+
   const action = state === 'on' ? 'ledOn' : 'ledOff';
-  const payload = { id: clientId || 'PHONE1', password: password, action: action };
-  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); }
+
+  const payload = {
+    id: clientId || 'PHONE1',
+    password: password,
+    action: action
+  };
+
+  console.log("➡️ JSON LED envoyé :", JSON.stringify(payload));
+
+  ws.send(JSON.stringify(payload));
+
+  console.log("✅ ws.send() exécuté");
+
   addLog(`→ LED ${state.toUpperCase()}`);
 }
 
