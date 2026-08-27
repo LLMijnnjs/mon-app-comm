@@ -20,6 +20,7 @@ const logEl = document.getElementById('log');
 const serverUrlInput = document.getElementById('serverUrl');
 
 // NEW: éléments pour l'envoi de message utilisateur
+const messageForm = document.getElementById('messageForm');
 const messageInput = document.getElementById('messageInput');
 const messageSend = document.getElementById('messageSend');
 
@@ -97,6 +98,8 @@ function markMessageDelivered(msgId, info) {
   el.classList.remove('pending');
   el.classList.add('delivered');
   pendingMessages.delete(msgId);
+  // re-enable send button
+  if (messageSend) messageSend.disabled = false;
   return true;
 }
 
@@ -110,6 +113,8 @@ function markMessageFailed(msgId, info) {
   el.classList.remove('pending');
   el.classList.add('failed');
   pendingMessages.delete(msgId);
+  // re-enable send button
+  if (messageSend) messageSend.disabled = false;
   return true;
 }
 
@@ -242,11 +247,21 @@ function sendLED(state) {
 
 // NEW: envoie d'un message saisi par l'utilisateur
 function sendMessage(text) {
-  if (!text || !text.trim()) { addLog('✗ Message vide'); return; }
-  if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return; }
+  if (!text || !text.trim()) { addLog('✗ Message vide'); return false; }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { addLog('✗ Non connecté'); return false; }
 
   const msgId = 'm-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
   const payload = { id: clientId || 'PHONE1', password: password, action: 'message', message: String(text), msgId: msgId };
+
+  // try to send first; only create pending entry if send succeeds
+  try {
+    console.log('WS send', payload);
+    ws.send(JSON.stringify(payload));
+  } catch (e) {
+    console.error('send failed', e);
+    addLog('✗ Envoi échoué');
+    return false;
+  }
 
   // create pending log entry
   if (logEl) {
@@ -268,7 +283,10 @@ function sendMessage(text) {
     pendingMessages.set(msgId, { el: p, timeout: t });
   }
 
-  try { ws.send(JSON.stringify(payload)); } catch (e) { console.error('send failed', e); addLog('✗ Envoi échoué'); if (pendingMessages.has(msgId)) markMessageFailed(msgId, 'send error'); }
+  // disable send button until ack/fail to avoid duplicates
+  if (messageSend) messageSend.disabled = true;
+
+  return true;
 }
 
 function changeServer() {
@@ -307,8 +325,9 @@ if (messageSend) {
   messageSend.addEventListener('click', () => {
     const text = messageInput ? (messageInput.value || '').trim() : '';
     if (!text) { addLog('✗ Message vide'); return; }
-    sendMessage(text);
-    if (messageInput) messageInput.value = '';
+    // attempt to send; if successful, clear input here
+    const ok = sendMessage(text);
+    if (ok && messageInput) messageInput.value = '';
   });
 }
 
