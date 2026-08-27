@@ -164,3 +164,12 @@ button {
 .auth-actions button { padding:6px 10px; }
 
 .error { color:#b00; font-size:0.9rem; margin-top:8px; }
+
+/* Styles ajoutés pour le formulaire de message */
+.message-form { display:flex; gap:0.5rem; margin:1rem 0; align-items:center; }
+.message-form input[type="text"] { flex:1; padding:0.5rem 0.75rem; border:1px solid #ddd; border-radius:8px; font-size:14px; }
+.message-form button { padding:0.6rem 1rem; border-radius:8px; background:#667eea; color:#fff; border:none; cursor:pointer; font-weight:600; }
+.message-form button:active { transform: translateY(1px); }
+
+/* accessible hidden label */
+.visually-hidden { position: absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
